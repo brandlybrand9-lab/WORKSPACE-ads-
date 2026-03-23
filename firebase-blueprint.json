@@ -1,0 +1,73 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A team member in the agency.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "manager", "employee"] }
+      },
+      "required": ["uid", "email", "name", "role"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A task assigned to a team member.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "status": { "type": "string" },
+        "priority": { "type": "string" },
+        "assignee": { "type": "string" },
+        "dueDate": { "type": "string" }
+      },
+      "required": ["title", "status", "priority", "assignee", "dueDate"]
+    },
+    "Lead": {
+      "title": "Lead",
+      "description": "A potential client or project.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "contact": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "value": { "type": "string" },
+        "stage": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "contact", "email", "value", "stage"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "An active or past client.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "projects": { "type": "number" },
+        "status": { "type": "string" },
+        "lastActive": { "type": "string" }
+      },
+      "required": ["name", "projects", "status", "lastActive"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles and roles."
+    },
+    "tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/Task" },
+      "description": "Stores all tasks."
+    },
+    "leads/{leadId}": {
+      "schema": { "$ref": "#/entities/Lead" },
+      "description": "Stores all leads."
+    },
+    "clients/{clientId}": {
+      "schema": { "$ref": "#/entities/Client" },
+      "description": "Stores all clients."
+    }
+  }
+}

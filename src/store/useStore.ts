@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 
 type Theme = 'dark' | 'light' | 'system';
 type Language = 'en' | 'fr' | 'ar';
-type Role = 'admin' | 'manager' | 'employee';
+export type Role = 'admin' | 'manager' | 'employee';
 
 export interface User {
   id: string;
@@ -28,6 +30,7 @@ export interface Lead {
   email: string;
   value: string;
   stage: string;
+  createdAt?: string;
 }
 
 export interface Client {
@@ -46,19 +49,31 @@ interface AppState {
   tasks: Task[];
   leads: Lead[];
   clients: Client[];
+  team: User[];
   setTheme: (theme: Theme) => void;
   setLanguage: (lang: Language) => void;
   login: (user: User) => void;
   logout: () => void;
+  
+  // Local state updates
+  setLeads: (leads: Lead[]) => void;
+  
+  // Actions
   addTask: (task: Omit<Task, 'id'>) => void;
   updateTask: (id: string, task: Partial<Task>) => void;
   deleteTask: (id: string) => void;
-  addLead: (lead: Omit<Lead, 'id'>) => void;
-  updateLead: (id: string, lead: Partial<Lead>) => void;
-  deleteLead: (id: string) => void;
+  
+  addLead: (lead: Omit<Lead, 'id'>) => Promise<void>;
+  updateLead: (id: string, lead: Partial<Lead>) => Promise<void>;
+  deleteLead: (id: string) => Promise<void>;
+  
   addClient: (client: Omit<Client, 'id'>) => void;
   updateClient: (id: string, client: Partial<Client>) => void;
   deleteClient: (id: string) => void;
+
+  addTeamMember: (member: Omit<User, 'id'>) => void;
+  updateTeamMember: (id: string, member: Partial<User>) => void;
+  deleteTeamMember: (id: string) => void;
 }
 
 const initialTasks: Task[] = [
@@ -68,16 +83,16 @@ const initialTasks: Task[] = [
   { id: '4', title: 'Weekly team sync', status: 'done', priority: 'low', assignee: 'All', dueDate: '2026-03-15' },
 ];
 
-const initialLeads: Lead[] = [
-  { id: '1', name: 'Acme Corp', contact: 'Alice Smith', email: 'alice@acme.com', value: '$12,000', stage: 'Negotiation' },
-  { id: '2', name: 'TechStart', contact: 'Bob Jones', email: 'bob@techstart.io', value: '$8,500', stage: 'Proposal' },
-  { id: '3', name: 'Global Retail', contact: 'Carol White', email: 'carol@global.com', value: '$24,000', stage: 'Discovery' },
-];
-
 const initialClients: Client[] = [
   { id: '1', name: 'Acme Corp', projects: 3, status: 'Active', lastActive: '2 days ago' },
   { id: '2', name: 'TechStart', projects: 1, status: 'Active', lastActive: '1 week ago' },
   { id: '3', name: 'Global Retail', projects: 5, status: 'Inactive', lastActive: '1 month ago' },
+];
+
+const initialTeam: User[] = [
+  { id: '1', email: 'admin@agency.com', name: 'John Doe', role: 'admin' },
+  { id: '2', email: 'sarah@agency.com', name: 'Sarah Smith', role: 'manager' },
+  { id: '3', email: 'mike@agency.com', name: 'Mike Johnson', role: 'employee' },
 ];
 
 export const useAppStore = create<AppState>()(
@@ -93,27 +108,86 @@ export const useAppStore = create<AppState>()(
       },
       isAuthenticated: true,
       tasks: initialTasks,
-      leads: initialLeads,
+      leads: [], // Leads will now be synced from Firebase
       clients: initialClients,
+      team: initialTeam,
       setTheme: (theme) => set({ theme }),
       setLanguage: (language) => set({ language }),
       login: (user) => set({ user, isAuthenticated: true }),
       logout: () => set({ user: null, isAuthenticated: false }),
       
+      setLeads: (leads) => set({ leads }),
+      
       addTask: (task) => set((state) => ({ tasks: [...state.tasks, { ...task, id: Math.random().toString(36).substr(2, 9) }] })),
       updateTask: (id, updatedTask) => set((state) => ({ tasks: state.tasks.map(t => t.id === id ? { ...t, ...updatedTask } : t) })),
       deleteTask: (id) => set((state) => ({ tasks: state.tasks.filter(t => t.id !== id) })),
       
-      addLead: (lead) => set((state) => ({ leads: [...state.leads, { ...lead, id: Math.random().toString(36).substr(2, 9) }] })),
-      updateLead: (id, updatedLead) => set((state) => ({ leads: state.leads.map(l => l.id === id ? { ...l, ...updatedLead } : l) })),
-      deleteLead: (id) => set((state) => ({ leads: state.leads.filter(l => l.id !== id) })),
+      addLead: async (lead) => {
+        try {
+          await addDoc(collection(db, 'leads'), {
+            ...lead,
+            createdAt: new Date().toISOString()
+          });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.CREATE, 'leads');
+        }
+      },
+      updateLead: async (id, updatedLead) => {
+        try {
+          await updateDoc(doc(db, 'leads', id), updatedLead);
+        } catch (error) {
+          handleFirestoreError(error, OperationType.UPDATE, `leads/${id}`);
+        }
+      },
+      deleteLead: async (id) => {
+        try {
+          await deleteDoc(doc(db, 'leads', id));
+        } catch (error) {
+          handleFirestoreError(error, OperationType.DELETE, `leads/${id}`);
+        }
+      },
       
       addClient: (client) => set((state) => ({ clients: [...state.clients, { ...client, id: Math.random().toString(36).substr(2, 9) }] })),
       updateClient: (id, updatedClient) => set((state) => ({ clients: state.clients.map(c => c.id === id ? { ...c, ...updatedClient } : c) })),
       deleteClient: (id) => set((state) => ({ clients: state.clients.filter(c => c.id !== id) })),
+
+      addTeamMember: (member) => set((state) => ({ team: [...state.team, { ...member, id: Math.random().toString(36).substr(2, 9) }] })),
+      updateTeamMember: (id, updatedMember) => set((state) => ({ team: state.team.map(m => m.id === id ? { ...m, ...updatedMember } : m) })),
+      deleteTeamMember: (id) => set((state) => ({ team: state.team.filter(m => m.id !== id) })),
     }),
     {
       name: 'app-storage',
+      partialize: (state) => ({ 
+        theme: state.theme, 
+        language: state.language, 
+        user: state.user, 
+        isAuthenticated: state.isAuthenticated,
+        tasks: state.tasks,
+        clients: state.clients,
+        team: state.team
+        // Exclude 'leads' from local storage persistence since it's in Firebase
+      }),
     }
   )
 );
+
+// Setup Firebase listener for leads
+export function setupFirebaseListeners() {
+  const unsubscribeLeads = onSnapshot(
+    collection(db, 'leads'),
+    (snapshot) => {
+      const leads = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Lead[];
+      useAppStore.getState().setLeads(leads);
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'leads');
+    }
+  );
+
+  return () => {
+    unsubscribeLeads();
+  };
+}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent } from '@/src/components/ui/card';
 import { Plus, Folder, FileText, MoreVertical, Edit, Trash2 } from 'lucide-react';
@@ -38,12 +39,31 @@ export function Clients() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.name.trim()) {
+      toast.error('Client name is required');
+      return;
+    }
+    
+    if (formData.projects < 0) {
+      toast.error('Active projects cannot be negative');
+      return;
+    }
+
     if (editingClient) {
       updateClient(editingClient.id, formData);
+      toast.success('Client updated successfully');
     } else {
       addClient(formData);
+      toast.success('Client added successfully');
     }
     setIsModalOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    deleteClient(id);
+    toast.success('Client deleted successfully');
   };
 
   return (
@@ -74,7 +94,7 @@ export function Clients() {
                     <Button variant="ghost" size="icon" onClick={() => handleOpenModal(client)}>
                       <Edit className="w-4 h-4 text-zinc-400 hover:text-indigo-600" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => deleteClient(client.id)}>
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(client.id)}>
                       <Trash2 className="w-4 h-4 text-zinc-400 hover:text-red-600" />
                     </Button>
                   </div>

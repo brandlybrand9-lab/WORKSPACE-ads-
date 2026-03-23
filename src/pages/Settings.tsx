@@ -64,6 +64,12 @@ export function Settings() {
               >
                 {t('dark')}
               </Button>
+              <Button 
+                variant={theme === 'system' ? 'default' : 'outline'} 
+                onClick={() => setTheme('system')}
+              >
+                System
+              </Button>
             </div>
           </div>
         </CardContent>

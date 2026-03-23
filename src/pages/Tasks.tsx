@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent } from '@/src/components/ui/card';
 import { Plus, MoreHorizontal, Calendar, Trash2, Edit } from 'lucide-react';
@@ -43,12 +44,26 @@ export function Tasks() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.title.trim() || !formData.assignee.trim() || !formData.dueDate) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
     if (editingTask) {
       updateTask(editingTask.id, formData);
+      toast.success('Task updated successfully');
     } else {
       addTask(formData);
+      toast.success('Task created successfully');
     }
     setIsModalOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    deleteTask(id);
+    toast.success('Task deleted successfully');
   };
 
   return (
@@ -109,7 +124,7 @@ export function Tasks() {
                             <button onClick={() => handleOpenModal(task)} className="text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400">
                               <Edit className="w-4 h-4" />
                             </button>
-                            <button onClick={() => deleteTask(task.id)} className="text-zinc-400 hover:text-red-600 dark:hover:text-red-400">
+                            <button onClick={() => handleDelete(task.id)} className="text-zinc-400 hover:text-red-600 dark:hover:text-red-400">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -168,7 +183,7 @@ export function Tasks() {
                           <Button variant="ghost" size="icon" onClick={() => handleOpenModal(task)}>
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteTask(task.id)} className="text-red-500 hover:text-red-600">
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(task.id)} className="text-red-500 hover:text-red-600">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
